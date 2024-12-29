@@ -19,3 +19,6 @@ Illussion Neiro is a language model for the Majestic Role Play project that assi
 3. 🌐 Open the `index.html` file in your browser.
 
 ✅ And you're all set!
+
+
+upd : добавил комантарии на каждую функцию
