@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1A1F2C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>AI Чат</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/highlight.min.js"></script>
+    <style>
+        /* Base styles */
+        :root {
+            --background: 252 30% 15%;
+            --foreground: 210 40% 98%;
+            --primary: 252 89% 75%;
+            --primary-foreground: 0 0% 100%;
+            --secondary: 252 89% 65%;
+            --secondary-foreground: 0 0% 100%;
+            --muted: 252 89% 20%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --accent: 252 89% 25%;
+            --accent-foreground: 210 40% 98%;
+            --border: 252 89% 30%;
+            --input: 252 89% 30%;
+            --ring: 252 89% 75%;
+            --radius: 1rem;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1A1F2C 0%, #2C1A2F 100%);
+            font-family: system-ui, -apple-system, sans-serif;
+            color: white;
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .message {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Стили ля анимации точек */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+
+        .typing-dot:nth-child(1) { animation: typingDot 1s infinite 0s; }
+        .typing-dot:nth-child(2) { animation: typingDot 1s infinite 0.2s; }
+        .typing-dot:nth-child(3) { animation: typingDot 1s infinite 0.4s; }
+
+        @keyframes typingDot {
+            0%, 100% { transform: translateY(0); opacity: 0.4; }
+            50% { transform: translateY(-4px); opacity: 1; }
+        }
+
+        /* Делаем чат на весь экран */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Стили для декоративных элементов */
+        .decorative-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.2;
+            z-index: 0;
+        }
+
+        .circle-1 {
+            width: 200px;
+            height: 200px;
+            background: rgb(142 129 199);
+            top: -50px;
+            left: -50px;
+        }
+
+        .circle-2 {
+            width: 300px;
+            height: 300px;
+            background: rgb(110 89 165);
+            bottom: -100px;
+            right: -100px;
+        }
+
+        /* Стили для аватаров */
+        .avatar {
+            width: 35px;
+            height: 35px;
+            min-width: 35px;
+            border-radius: 50%;
+            padding: 2px;
+            background: linear-gradient(45deg, rgba(155,135,245,0.5), rgba(110,89,165,0.5));
+        }
+
+        .avatar svg {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            padding: 4px;
+        }
+
+        /* Стили для сообщений с аватарками */
+        .message-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        /* Стили для заголовка сообщения */
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .sender-name {
+            color: rgb(155, 135, 245);
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .user-message .message-header {
+            flex-direction: row-reverse;
+        }
+
+        .message-content-wrapper {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .user-message .message-content-wrapper {
+            flex-direction: row-reverse;
+        }
+
+        /* Стили для Markdown */
+        .markdown-content {
+            line-height: 1.6;
+        }
+
+        .markdown-content h1 {
+            font-size: 1.8em;
+            margin: 0.8em 0;
+            font-weight: bold;
+        }
+
+        .markdown-content h2 {
+            font-size: 1.5em;
+            margin: 0.7em 0;
+            font-weight: bold;
+        }
+
+        .markdown-content h3 {
+            font-size: 1.3em;
+            margin: 0.6em 0;
+            font-weight: bold;
+        }
+
+        .markdown-content p {
+            margin: 0.5em 0;
+        }
+
+        .markdown-content ul, .markdown-content ol {
+            margin: 0.5em 0;
+            padding-left: 1.5em;
+        }
+
+        .markdown-content ul {
+            list-style-type: disc;
+        }
+
+        .markdown-content ol {
+            list-style-type: decimal;
+        }
+
+        .markdown-content code:not(pre code) {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .markdown-content pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1em;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 0.5em 0;
+        }
+
+        .markdown-content pre code {
+            background: transparent;
+            padding: 0;
+            font-family: monospace;
+        }
+
+        .markdown-content blockquote {
+            border-left: 3px solid rgba(155, 135, 245, 0.5);
+            padding-left: 1em;
+            margin: 0.5em 0;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .markdown-content img {
+            max-width: 100%;
+            border-radius: 5px;
+            margin: 0.5em 0;
+        }
+
+        .markdown-content a {
+            color: rgb(155, 135, 245);
+            text-decoration: underline;
+        }
+
+        /* Стили для скроллбара */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(155, 135, 245, 0.3);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(155, 135, 245, 0.5);
+        }
+
+        /* Firefox скроллбар */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(155, 135, 245, 0.3) rgba(255, 255, 255, 0.05);
+        }
+
+        /* Стили для области с сообщениями */
+        #chat-messages {
+            scroll-behavior: smooth;
+        }
+
+        /* Стили для контейнера сообщения */
+        .message-content {
+            max-width: 70%;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        /* Анимации для сообщений */
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Применяем анимации */
+        .user-message .message-content {
+            animation: slideInRight 0.3s ease forwards;
+        }
+
+        .ai-message .message-content {
+            animation: slideInLeft 0.3s ease forwards;
+        }
+
+        /* Анимация для индикатора печати */
+        #typing-indicator .message-content {
+            animation: slideInLeft 0.2s ease forwards;
+        }
+
+        /* Позиционирование сообщений пользователя справа */
+        .user-message {
+            justify-content: flex-end;
+        }
+
+        /* Позиционирование сообщений AI слева */
+        .ai-message {
+            justify-content: flex-start;
+        }
+
+        /* Порядок элементов в сообщениях пользователя */
+        .user-message .message-content {
+            flex-direction: row-reverse;
+        }
+
+        /* Делаем контейнер чата немного прозрачным для видимости частиц */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Базовые медиа-запросы для мобильных устройств */
+        @media (max-width: 768px) {
+            /* Уменьшаем отступы контейнера */
+            .container {
+                padding: 8px;
+            }
+            
+            /* Уменьшаем padding в основном контейнере чата */
+            .glass-effect {
+                padding: 12px;
+            }
+            
+            /* Регулируем размер сообщений */
+            .message-content {
+                max-width: 85%;
+            }
+            
+            /* Уменьшаем отступы в области сообщений */
+            #chat-messages {
+                padding: 8px;
+            }
+            
+            /* Оптимизируем форму ввода */
+            .input-group {
+                padding: 8px;
+            }
+            
+            /* Уменьшаем размер кнопки */
+            .submit-button {
+                padding: 8px 16px;
+            }
+            
+            /* Оптимизируем размер шрифта для markdown-контента */
+            .markdown-content {
+                font-size: 0.95em;
+            }
+            
+            /* Оптимизируем таблицы для прокрутки на маленьких экранах */
+            .markdown-content table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            /* Уменьшаем размер блоков кода */
+            .markdown-content pre {
+                padding: 0.8em;
+                font-size: 0.9em;
+            }
+        }
+
+        /* Дополнительные стили для очень маленьких экранов */
+        @media (max-width: 480px) {
+            /* Уменьшаем размер аватаров */
+            .avatar {
+                width: 30px;
+                height: 30px;
+                min-width: 30px;
+            }
+            
+            /* Увеличиваем шир��ну сообщений */
+            .message-content {
+                max-width: 90%;
+            }
+            
+            /* Уменьшаем отступы */
+            .message-container {
+                gap: 6px;
+                margin-bottom: 12px;
+            }
+            
+            /* Оптимизируем форму ввода */
+            #user-input {
+                font-size: 16px; /* Предотвращает масштабирование на iOS */
+            }
+            
+            .submit-button {
+                font-size: 0.9em;
+                padding: 6px 12px;
+            }
+            
+            /* Уменьшаем размер декоративных элементов */
+            .decorative-circle.circle-1 {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .decorative-circle.circle-2 {
+                width: 200px;
+                height: 200px;
+            }
+        }
+
+        /* Оптимизация для ландшафтной ориентации на мобильных */
+        @media (max-height: 600px) and (orientation: landscape) {
+            /* Уменьшаем отступы */
+            .container {
+                padding: 4px;
+            }
+            
+            /* Оптимизи��уем высоту области сообщений */
+            #chat-messages {
+                max-height: calc(100vh - 80px);
+            }
+            
+            /* Уменьшаем размер формы ввода */
+            .input-group {
+                padding: 6px;
+            }
+        }
+
+        /* Оптимизация для устройств с высоким DPI */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            /* Уменьшаем размер blur для лучшей производительности */
+            .glass-effect {
+                backdrop-filter: blur(8px);
+            }
+        }
+
+        /* Оптимизация для устройств с поддержкой hover */
+        @media (hover: hover) {
+            .submit-button:hover {
+                background: rgba(155, 135, 245, 0.2);
+            }
+        }
+
+        /* Оптимизация для устройств без поддержки hover */
+        @media (hover: none) {
+            .submit-button:active {
+                background: rgba(155, 135, 245, 0.2);
+            }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center">
+    <canvas id="particleCanvas" class="fixed top-0 left-0 w-full h-full -z-10 opacity-50"></canvas>
+    <div class="container h-screen w-screen p-4">
+        <div class="glass-effect rounded-2xl h-full flex flex-col p-6 relative overflow-hidden">
+            <!-- Декоративные элементы -->
+            <div class="decorative-circle circle-1"></div>
+            <div class="decorative-circle circle-2"></div>
+            
+            <!-- Область чата -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto mb-4 space-y-4 p-4">
+                <!-- Сообщения будут добавляться здесь -->
+            </div>
+            
+            <!-- Форма отправки -->
+            <form id="chat-form" class="relative z-10">
+                <div class="input-group glass-effect rounded-lg p-2 flex gap-2">
+                    <input 
+                        type="text" 
+                        id="user-input" 
+                        class="flex-1 bg-transparent border-none focus:outline-none text-white placeholder-gray-400"
+                        placeholder="Введите ваше сообщение..."
+                    >
+                    <button 
+                        type="submit"
+                        class="submit-button px-6 py-2 rounded-lg"
+                    >
+                        Отправить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
